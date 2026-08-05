@@ -235,7 +235,7 @@ outputs/erecu/
 If you find EReCu useful for your research, please cite our paper:
 
 ```bibtex
-@InProceedings{Jiang_2026_CVPR,
+@InProceedings{EReCu_2026_CVPR,
     author    = {Jiang, Shuo and Zhang, Gaojia and Tan, Min and Yin, Yufei and Pan, Gang},
     title     = {{EReCu}: Pseudo-Label Evolution Fusion and Refinement with Multi-Cue Learning for Unsupervised Camouflage Detection},
     booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
