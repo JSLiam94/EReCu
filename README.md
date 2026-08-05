@@ -4,6 +4,35 @@
 
 
 
+
+
+## Method Overview
+
+### Comparison with Conventional Paradigms
+
+<p align="center">
+  <img src="assets/figures/Fans.png" alt="Comparison between EReCu and conventional paradigms" width="50%">
+</p>
+
+### Overall Framework
+
+<p align="center">
+  <img src="assets/figures/Model.png" alt="Overall framework" width="50%">
+</p>
+
+### Pseudo-Label Evolution and Fusion / Multi-Cue Learning
+
+<p align="center">
+  <img src="assets/figures/EPL.png" alt="Pseudo-label evolution and fusion" width="40%">
+  <img src="assets/figures/MNP.png" alt="Multi-cue learning" width="40%">
+</p>
+
+### Attention Visualization (DINO ViT-S/8)
+
+<p align="center">
+  <img src="assets/figures/attn_cropped.png" alt="Attention visualization" width="50%">
+</p>
+
 ## Repository Structure
 
 ```text
@@ -18,30 +47,6 @@ EReCu/
 ├── evaluate.py                      # Evaluation
 └── run.py                           # Unified entry point
 ```
-
-## Method Overview
-
-### Comparison with Conventional Paradigms
-
-![Comparison between EReCu and conventional paradigms](assets/figures/Fans.png)
-
-### Overall Framework
-
-![Overall framework](assets/figures/Model.png)
-
-### Pseudo-Label Evolution and Fusion
-
-![Pseudo-label evolution and fusion](assets/figures/EPL.png)
-
-### Multi-Cue Learning
-
-![Multi-cue learning](assets/figures/MNP.png)
-
-### Attention Visualization (DINO ViT-S/8)
-
-![Attention visualization](assets/figures/attn_cropped.png)
-
-
 
 ## Environment Setup
 
