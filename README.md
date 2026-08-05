@@ -25,7 +25,7 @@
 ### Attention Visualization (DINO ViT-S/8)
 
 <p align="center">
-  <img src="assets/figures/attn_cropped.png" alt="Attention visualization" width="50%">
+  <img src="assets/figures/attn_cropped.png" alt="Attention visualization" width="80%">
 </p>
 
 ## Repository Structure
