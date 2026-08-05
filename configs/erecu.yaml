@@ -1,0 +1,60 @@
+seed: 2026
+experiment:
+  name: erecu
+  output_dir: outputs/erecu
+data:
+  train_images: data/TrainDataset/Imgs
+  expected_count: 4040
+  hflip: 0.5
+model:
+  image_size: 480
+  dino_weights: weights/dino_deitsmall8_pretrain.pth
+  student_layers: [4, 8, 12]
+  teacher_layers: [6, 10, 12]
+  resnet_pretrained: true
+mnp:
+  sigma1: 1.0
+  sigma2: 2.0
+  threshold: 0.5
+  samples: 5
+  patch_size: 15
+teacher:
+  momentum: 0.995
+  momentum_end: 0.9995
+  schedule_start_epoch: 1
+  schedule_end_epoch: 25
+pseudo:
+  seed_mix_start: 0.98
+  seed_mix_end: 0.80
+  temperature_start: 1.0
+  temperature_end: 0.90
+  schedule_start_epoch: 1
+  schedule_end_epoch: 25
+  tas_seed_blend: 0.15
+  tas_temperature: 0.18
+  confidence_floor: 0.12
+  confidence_gamma: 1.5
+  consensus_gamma: 1.0
+optimizer:
+  lr: 0.000015
+  backbone_lr: 0.000001
+  min_lr: 0.0000001
+  weight_decay: 0.05
+loss:
+  global: 1.0
+  epl: 0.40
+  pool: 0.15
+  lpr: 0.10
+  mnp: 0.12
+  boundary: 0.04
+training:
+  epochs: 25
+  batch_size: 4
+  grad_accumulation: 8
+  workers: 4
+  amp: true
+  save_every: 1
+  teacher_flip_consistency: true
+  early_stop_start_epoch: 10
+  early_stop_patience: 4
+  early_stop_min_delta: 0.0001
