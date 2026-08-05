@@ -8,16 +8,11 @@
 
 ## Method Overview
 
-### Comparison with Conventional Paradigms
+### Comparison with Conventional Paradigms / Overall Framework
 
 <p align="center">
-  <img src="assets/figures/Fans.png" alt="Comparison between EReCu and conventional paradigms" width="50%">
-</p>
-
-### Overall Framework
-
-<p align="center">
-  <img src="assets/figures/Model.png" alt="Overall framework" width="50%">
+  <img src="assets/figures/Fans.png" alt="Comparison between EReCu and conventional paradigms" height="260">
+  <img src="assets/figures/Model.png" alt="Overall framework" height="260">
 </p>
 
 ### Pseudo-Label Evolution and Fusion / Multi-Cue Learning
