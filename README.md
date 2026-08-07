@@ -8,21 +8,21 @@
 
 ## Method Overview
 
-### Comparison with Conventional Paradigms / Overall Framework
+### UCOD paradigm comparison / Overall Framework of EReCu
 
 <p align="center">
-  <img src="assets/figures/Fans.png" alt="Comparison between EReCu and conventional paradigms" height="260">
-  <img src="assets/figures/Model.png" alt="Overall framework" height="260">
+  <img src="assets/figures/Fans.png" alt="UCOD paradigm comparison" height="260">
+  <img src="assets/figures/Model.png" alt="Overall Framework of EReCu" height="260">
 </p>
 
-### Pseudo-Label Evolution and Fusion / Multi-Cue Learning
+### Evolutionary Pseudo-Label Learning/ Multi-Cue Native Perception
 
 <p align="center">
-  <img src="assets/figures/EPL.png" alt="Pseudo-label evolution and fusion" width="40%">
-  <img src="assets/figures/MNP.png" alt="Multi-cue learning" width="40%">
+  <img src="assets/figures/EPL.png" alt="Evolutionary Pseudo-Label Learning" width="40%">
+  <img src="assets/figures/MNP.png" alt="Multi-Cue Native Perception" width="40%">
 </p>
 
-### Attention Visualization (DINO ViT-S/8)
+### Visualization of MHSA reveals that different heads focus on distinct visual cues (DINO ViT-S/8)
 
 <p align="center">
   <img src="assets/figures/attn_cropped.png" alt="Attention visualization" width="80%">
