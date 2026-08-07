@@ -1,6 +1,6 @@
 # EReCu
 
-**EReCu: Pseudo-Label Evolution Fusion and Refinement with Multi-Cue Learning for Unsupervised Camouflage Detection**
+**Pseudo-Label Evolution Fusion and Refinement with Multi-Cue Learning for Unsupervised Camouflage Detection**
 
 
 
