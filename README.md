@@ -22,7 +22,7 @@
   <img src="assets/figures/MNP.png" alt="Multi-Cue Native Perception" width="40%">
 </p>
 
-### Visualization of MHSA reveals that different heads focus on distinct visual cues (DINO ViT-S/8)
+### Visualization of MHSA reveals that different heads focus on distinct visual cues
 
 <p align="center">
   <img src="assets/figures/attn_cropped.png" alt="Attention visualization" width="80%">
