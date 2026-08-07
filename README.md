@@ -11,11 +11,11 @@
 ### UCOD paradigm comparison / Overall Framework of EReCu
 
 <p align="center">
-  <img src="assets/figures/Fans.png" alt="UCOD paradigm comparison" height="260">
-  <img src="assets/figures/Model.png" alt="Overall Framework of EReCu" height="260">
+  <img src="assets/figures/Fans.png" alt="UCOD paradigm comparison" height="270">
+  <img src="assets/figures/Model.png" alt="Overall Framework of EReCu" height="270">
 </p>
 
-### Evolutionary Pseudo-Label Learning/ Multi-Cue Native Perception
+### Evolutionary Pseudo-Label Learning / Multi-Cue Native Perception
 
 <p align="center">
   <img src="assets/figures/EPL.png" alt="Evolutionary Pseudo-Label Learning" width="40%">
