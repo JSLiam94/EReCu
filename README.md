@@ -2,6 +2,8 @@
 
 **Pseudo-Label Evolution Fusion and Refinement with Multi-Cue Learning for Unsupervised Camouflage Detection**
 
+📄 [Paper](https://openaccess.thecvf.com/content/CVPR2026/html/Jiang_EReCu_Pseudo-label_Evolution_Fusion_and_Refinement_with_Multi-Cue_Learning_for_CVPR_2026_paper.html)
+
 
 
 
