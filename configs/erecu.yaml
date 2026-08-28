@@ -12,6 +12,9 @@ model:
   student_layers: [4, 8, 12]
   teacher_layers: [6, 10, 12]
   resnet_pretrained: true
+  # Stored in this repository; train.py downloads this exact ImageNet weight
+  # before any dataset/model work and fails if it cannot be verified.
+  resnet_weights: weights/resnet18-f37072fd.pth
 mnp:
   sigma1: 1.0
   sigma2: 2.0

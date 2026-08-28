@@ -5,12 +5,48 @@ from pathlib import Path
 
 import torch
 from torch.utils.data import DataLoader
+from torchvision.models import ResNet18_Weights, resnet18
 
 from erecu.backbone import load_dino_weights
 from erecu.data import ImageOnlyDataset, train_collate
 from erecu.model import EReCuModel
 from erecu.trainer import Trainer
 from erecu.utils import load_yaml, save_json, seed_everything, sha256
+
+
+def preflight_pretrained_resnet(config: dict) -> None:
+    """Download and validate the required ImageNet ResNet-18 before training."""
+    model_cfg = config["model"]
+    if not model_cfg.get("resnet_pretrained", False):
+        return
+    filename = Path(ResNet18_Weights.DEFAULT.url).name
+    path = Path(model_cfg.get("resnet_weights", Path("weights") / filename)).expanduser()
+    model_cfg["resnet_weights"] = str(path)
+    if not path.is_file() or path.stat().st_size == 0:
+        print(f"Preflight: downloading ImageNet ResNet-18 weights to {path}", flush=True)
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            torch.hub.load_state_dict_from_url(
+                ResNet18_Weights.DEFAULT.url,
+                model_dir=str(path.parent),
+                file_name=path.name,
+                progress=True,
+                check_hash=True,
+            )
+        except Exception as error:
+            raise FileNotFoundError(
+                f"ImageNet ResNet-18 weights are missing and download failed: {path} ({error})"
+            ) from error
+    if not path.is_file() or path.stat().st_size == 0:
+        raise FileNotFoundError(f"ImageNet ResNet-18 download did not create a usable file: {path}")
+    try:
+        state = torch.load(path, map_location="cpu", weights_only=True)
+        if not isinstance(state, dict):
+            raise TypeError(f"expected a state dict, got {type(state).__name__}")
+        resnet18(weights=None).load_state_dict(state, strict=True)
+    except Exception as error:
+        raise RuntimeError(f"ImageNet ResNet-18 weights are unreadable: {path} ({error})") from error
+    print(f"Preflight passed: ImageNet ResNet-18={path}", flush=True)
 
 
 def main() -> None:
@@ -28,6 +64,7 @@ def main() -> None:
         config["model"]["dino_weights"] = args.dino_weights
     if args.train_images:
         config["data"]["train_images"] = args.train_images
+    preflight_pretrained_resnet(config)
     seed_everything(config["seed"])
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     output = Path(args.output or config["experiment"]["output_dir"])
@@ -53,6 +90,7 @@ def main() -> None:
     model = EReCuModel(
         image_size=config["model"]["image_size"],
         resnet_pretrained=config["model"].get("resnet_pretrained", False),
+        resnet_weights_path=config["model"].get("resnet_weights"),
         mnp_sigma1=config["mnp"]["sigma1"],
         mnp_sigma2=config["mnp"]["sigma2"],
         mnp_threshold=config["mnp"]["threshold"],
@@ -69,6 +107,7 @@ def main() -> None:
             "device": str(device),
             "training_images": len(dataset),
             "dino_sha256": sha256(config["model"]["dino_weights"]),
+            "resnet_weights": config["model"].get("resnet_weights"),
             "supervision": "images_only",
         },
         output / "run_metadata.json",

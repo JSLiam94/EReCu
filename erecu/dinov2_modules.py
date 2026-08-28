@@ -8,7 +8,7 @@ from torch import nn
 from torch.nn import functional as F
 from torchvision.models import ResNet18_Weights, resnet18
 
-from .utils import safe_minmax
+from .utils import safe_logit, safe_minmax
 
 
 def gaussian_kernel(sigma: float, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
@@ -109,6 +109,8 @@ class MultiCueNativePerception(nn.Module):
         dilation: int = 5,
         samples: int = 5,
         patch_size: int = 15,
+        backbone_patch_size: int = 8,
+        grid_patch_size: int | None = None,
     ) -> None:
         super().__init__()
         self.texture = TextureExtractor(sigma1, sigma2)
@@ -117,6 +119,8 @@ class MultiCueNativePerception(nn.Module):
         self.dilation = dilation if dilation % 2 else dilation + 1
         self.samples = samples
         self.patch_size = patch_size
+        self.backbone_patch_size = backbone_patch_size
+        self.grid_patch_size = grid_patch_size
 
     def extract(self, native: torch.Tensor, grid_size: tuple[int, int]) -> torch.Tensor:
         texture = self.texture(native)
@@ -187,7 +191,7 @@ class MultiCueNativePerception(nn.Module):
 
         with torch.no_grad():
             inside, surface, outside = self._regions(mask.detach(), soft=False)
-            grid_patch = max(1, int(round(self.patch_size / 8.0)))
+            grid_patch = self.grid_patch_size or max(1, int(round(self.patch_size / self.backbone_patch_size)))
             if grid_patch % 2 == 0:
                 grid_patch += 1
             padding = grid_patch // 2
@@ -221,10 +225,11 @@ class MultiCueNativePerception(nn.Module):
 
 
 class DepthwiseSeparableHead(nn.Module):
-    def __init__(self, channels: int = 384) -> None:
+    def __init__(self, channels: int) -> None:
         super().__init__()
         self.depthwise = nn.Conv2d(channels, channels, 3, padding=1, groups=channels, bias=False)
-        self.norm = nn.GroupNorm(24, channels)
+        groups = 24 if channels % 24 == 0 else 1
+        self.norm = nn.GroupNorm(groups, channels)
         self.pointwise = nn.Conv2d(channels, channels, 1, bias=False)
         self.out = nn.Conv2d(channels, 1, 1)
 
@@ -243,7 +248,7 @@ class PoolMaskHead(nn.Module):
         mean = safe_minmax(x.mean(dim=1, keepdim=True))
         maximum = safe_minmax(x.amax(dim=1, keepdim=True))
         pooled = 0.5 * (mean + maximum)
-        base_logits = torch.logit(pooled.clamp(1e-4, 1.0 - 1e-4))
+        base_logits = safe_logit(pooled)
         return base_logits + self.residual(torch.cat([mean, maximum], dim=1))
 
 

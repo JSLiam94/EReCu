@@ -6,9 +6,9 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from .backbone import DinoViTSmall8
-from .modules import DepthwiseSeparableHead, LocalPseudoLabelRefinement, MultiCueNativePerception, PoolMaskHead, SpectralTensorAttentionFusion
-from .utils import safe_minmax
+from .dinov2_backbone import DinoV2Backbone
+from .dinov2_modules import DepthwiseSeparableHead, LocalPseudoLabelRefinement, MultiCueNativePerception, PoolMaskHead, SpectralTensorAttentionFusion
+from .utils import safe_logit, safe_minmax
 
 
 @dataclass
@@ -25,7 +25,7 @@ class EReCuOutput:
     mnp_features: torch.Tensor | None
 
 
-class EReCuModel(nn.Module):
+class DinoV2EReCuModel(nn.Module):
     def __init__(
         self,
         image_size: int = 224,
@@ -34,29 +34,49 @@ class EReCuModel(nn.Module):
         mnp_sigma1: float = 1.0,
         mnp_sigma2: float = 2.0,
         mnp_threshold: float = 0.5,
+        mnp_dilation: int = 5,
         mnp_samples: int = 5,
         mnp_patch_size: int = 15,
+        mnp_grid_patch_size: int | None = None,
         tas_seed_blend: float = 0.65,
         tas_temperature: float = 0.15,
         layers: tuple[int, int, int] = (4, 8, 12),
+        backbone_name: str = "weights/dinov2_vitb14_pretrain.pth",
+        backbone_local_files_only: bool = False,
+        backbone_frozen: bool = False,
+        backbone_trainable_last_blocks: int | None = None,
     ) -> None:
         super().__init__()
         self.layers = layers
-        self.backbone = DinoViTSmall8(image_size=image_size)
+        self.backbone = DinoV2Backbone(
+            backbone_name,
+            local_files_only=backbone_local_files_only,
+            frozen=backbone_frozen,
+            trainable_last_blocks=backbone_trainable_last_blocks,
+        )
         self.mnp = MultiCueNativePerception(
             resnet_pretrained=resnet_pretrained,
             resnet_weights_path=resnet_weights_path,
             sigma1=mnp_sigma1,
             sigma2=mnp_sigma2,
             threshold=mnp_threshold,
+            dilation=mnp_dilation,
             samples=mnp_samples,
             patch_size=mnp_patch_size,
+            backbone_patch_size=self.backbone.patch_size,
+            grid_patch_size=mnp_grid_patch_size,
         )
         self.tas_seed_blend = tas_seed_blend
         self.tas_temperature = tas_temperature
-        self.dsc_heads = nn.ModuleList([DepthwiseSeparableHead() for _ in layers])
+        self.dsc_heads = nn.ModuleList([DepthwiseSeparableHead(self.backbone.embed_dim) for _ in layers])
         self.pool_heads = nn.ModuleList([PoolMaskHead() for _ in layers])
-        self.staf = SpectralTensorAttentionFusion(layers=len(layers), heads=6)
+        # Preserve the original STAF 50% head-rank compression: DINOv1-S used
+        # rank 3 for six heads, while DINOv2-Base needs rank 6 for 12 heads.
+        self.staf = SpectralTensorAttentionFusion(
+            layers=len(layers),
+            heads=self.backbone.num_heads,
+            head_rank=max(1, self.backbone.num_heads // 2),
+        )
         self.final_head = nn.Sequential(
             nn.Conv2d(1 + 2 * len(layers), 24, 3, padding=1, bias=False),
             nn.GroupNorm(6, 24),
@@ -87,14 +107,14 @@ class EReCuModel(nn.Module):
         base_attention_seed = safe_minmax(safe_minmax(last_attention).mean(dim=1, keepdim=True))
         if mnp_features is None and (compute_mnp or make_local_pseudo or quality_seed):
             mnp_features = self.mnp.extract(native, backbone.grid_size)
-        selection = None
+        quality_analysis = None
         if quality_seed:
             if mnp_features is None:
                 raise RuntimeError("TAS quality seed requires MNP features")
-            selection = self.lpr.analyze(last_attention, self.mnp, mnp_features)
+            quality_analysis = self.lpr.analyze(last_attention, self.mnp, mnp_features)
             attention_seed = self.lpr.quality_fuse(
                 last_attention,
-                selection,
+                quality_analysis,
                 blend=self.tas_seed_blend,
                 temperature=self.tas_temperature,
             )
@@ -102,10 +122,7 @@ class EReCuModel(nn.Module):
             attention_seed = base_attention_seed
         staf_logits = self.staf(attention_tensor)
         residual_logits = self.final_head(torch.cat([staf_logits, *dsc_logits, *pool_logits], dim=1))
-        # Keep inference fast and stable: the final prediction is anchored to
-        # the batch-invariant DINO mean seed, while the stronger MNP/TAS seed is
-        # used only as evolutionary teacher supervision.
-        prior_logits = torch.logit(base_attention_seed.clamp(1e-4, 1.0 - 1e-4))
+        prior_logits = safe_logit(base_attention_seed)
         final_logits = prior_logits + residual_logits
         probability_grid = torch.sigmoid(final_logits)
         probability = F.interpolate(probability_grid, size=image.shape[-2:], mode="bilinear", align_corners=False)
@@ -124,7 +141,7 @@ class EReCuModel(nn.Module):
         if make_local_pseudo:
             if mnp_features is None:
                 raise RuntimeError("Local pseudo labels require MNP features")
-            local_pseudo, lpr_diag = self.lpr(last_attention, self.mnp, mnp_features, analysis=selection)
+            local_pseudo, lpr_diag = self.lpr(last_attention, self.mnp, mnp_features, analysis=quality_analysis)
             diagnostics.update(lpr_diag)
         return EReCuOutput(
             probability=probability,

@@ -34,6 +34,8 @@ DEPENDENCIES = (
     Dependency("py_sod_metrics", "pysodmetrics", required_for_metrics=True),
 )
 
+DINOv2_DEPENDENCIES = (Dependency("transformers", "transformers>=4.41,<5"),)
+
 
 def available(module: str) -> bool:
     try:
@@ -63,6 +65,7 @@ def main() -> None:
     parser = argparse.ArgumentParser("Check/install EReCu dependencies for the active Python environment")
     parser.add_argument("--check", action="store_true", help="only report missing packages; do not install")
     parser.add_argument("--metrics-only", action="store_true", help="only check/install evaluation dependencies")
+    parser.add_argument("--with-dinov2", action="store_true", help="also check/install the optional DINOv2 dependency")
     parser.add_argument("--index-url", default=PYPI, help=f"PyPI-compatible package index (default: {PYPI})")
     args = parser.parse_args()
 
@@ -73,6 +76,8 @@ def main() -> None:
         )
 
     wanted = [item for item in DEPENDENCIES if not args.metrics_only or item.required_for_metrics]
+    if args.with_dinov2 and not args.metrics_only:
+        wanted.extend(DINOv2_DEPENDENCIES)
     missing = [item for item in wanted if not available(item.module)]
     if not missing:
         print("PASS: all requested EReCu dependencies are available")

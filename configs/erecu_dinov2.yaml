@@ -1,0 +1,109 @@
+# DINOv2 configuration derived from the supplied three-seed training setup.
+# Training augmentation intentionally remains EReCu's native augmentation in
+# erecu/data.py (horizontal flip, colour jitter and occasional grayscale).
+seed: 2026
+experiment:
+  name: erecu_dinov2
+  output_dir: outputs/erecu_dinov2
+  seeds: [2026]
+data:
+  train_images: data/TrainDataset/Imgs
+  expected_count: 4040
+  hflip: 0.5
+model:
+  # Match the saved highest-scoring seed_2025 run.
+  image_size: 518
+  # Official Meta DINOv2 ViT-B/14 checkpoint. The adapter loads this raw .pth
+  # file directly, so neither Hugging Face nor a network connection is needed.
+  backbone: weights/dinov2_vitb14_pretrain.pth
+  backbone_local_files_only: true
+  # Keep the pretrained low-level representation stable and adapt only the
+  # final semantic blocks to the pseudo-label objective.
+  backbone_frozen: false
+  backbone_trainable_last_blocks: 4
+  student_layers: [4, 8, 12]
+  teacher_layers: [6, 10, 12]
+  resnet_pretrained: true
+  # ImageNet ResNet-18 is kept in this repository, never in torch.hub's
+  # user-global cache. train.py downloads it here if it is absent.
+  resnet_weights: weights/resnet18-f37072fd.pth
+mnp:
+  sigma1: 1.0
+  sigma2: 2.0
+  threshold: 0.5
+  # DINOv1-S/8 used dilation 5 on an 8-pixel grid (~40 px). DINOv2-B/14
+  # uses dilation 3 on a 14-pixel grid (~42 px), preserving image-space scale.
+  dilation: 3
+  samples: 5
+  patch_size: 15
+  # Original DINOv1-S/8 code effectively used a 3×3 token neighborhood.
+  grid_patch_size: 3
+teacher:
+  momentum: 0.995
+  momentum_end: 0.9995
+  schedule_start_epoch: 1
+  schedule_end_epoch: 25
+pseudo:
+  # Keep a larger contribution from the reliable initial seed late in the
+  # 25-epoch run, so pseudo-label drift does not peak the CAMO score too early.
+  seed_mix_start: 0.98
+  seed_mix_end: 0.80
+  temperature_start: 1.0
+  temperature_end: 0.90
+  schedule_start_epoch: 1
+  schedule_end_epoch: 40
+  tas_seed_blend: 0.15
+  tas_temperature: 0.18
+  confidence_floor: 0.12
+  confidence_gamma: 1.5
+  consensus_gamma: 1.0
+optimizer:
+  type: AdamW
+  # Values from outputs/erecu_dinov2_last4/seed_2025/run_metadata.json.
+  # Slow initial adaptation modestly, while the longer cosine schedule keeps
+  # a useful rate late in training and targets the selection peak near epoch 24.
+  lr: 0.0000035
+  backbone_lr: 0.000000175
+  # DINOv2's final block uses backbone_lr; earlier blocks are decayed.
+  layer_decay: 0.85
+  # Used only when switching to the optional cosine scheduler.
+  min_lr: 0.0000001
+  weight_decay: 0.05
+scheduler:
+  # Match the saved seed_2025 run: all optimizer groups use the same two-epoch
+  # linear warmup before cosine decay.
+  type: cosine
+  step_unit: epoch
+  warmup_epochs: 2
+  warmup_start_factor: 0.1
+  cosine_t_max_epochs: 35
+loss:
+  global: 1.0
+  epl: 0.40
+  pool: 0.15
+  lpr: 0.10
+  mnp: 0.12
+  boundary: 0.04
+training:
+  epochs: 25
+  # Physical batch is doubled while the effective batch remains 32.
+  batch_size: 16
+  grad_accumulation: 2
+  workers: 4
+  amp: true
+  # Default GradScaler init_scale=65536 caused the first four optimizer
+  # updates to overflow. 2048 is the stable scale observed on this model;
+  # do not grow it back during this 25-epoch run.
+  amp_init_scale: 2048.0
+  amp_growth_interval: 1000000
+  # Abort rather than silently saving an untrained model when GradScaler
+  # repeatedly skips updates because of non-finite fp16 gradients.
+  max_consecutive_skipped_updates: 8
+  grad_norm: 1.0
+  teacher_flip_consistency: true
+  # Early stopping is based only on self-supervised training loss.
+  early_stop_start_epoch: 24
+  early_stop_patience: 2
+  early_stop_min_delta: 0.0
+checkpoint:
+  keep: [best, last]

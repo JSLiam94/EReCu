@@ -80,6 +80,17 @@ def safe_minmax(x: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:
     return (x - lo) / (hi - lo + eps)
 
 
+def safe_logit(probability: torch.Tensor, eps: float = 1e-4) -> torch.Tensor:
+    """Numerically safe probability-to-logit conversion under CUDA fp16 AMP.
+
+    In float16, ``1 - 1e-4`` rounds to exactly ``1``. Calling ``torch.logit``
+    on a saturated probability then yields ``inf`` and poisons the backward
+    pass. Do the clamp and logit in float32 and deliberately return float32.
+    """
+    with torch.autocast(device_type=probability.device.type, enabled=False):
+        return torch.logit(probability.float().clamp(eps, 1.0 - eps))
+
+
 def gradient_magnitude(x: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:
     """Differentiable first-order boundary magnitude on a probability map."""
     dx = torch.nn.functional.pad(x[..., 1:] - x[..., :-1], (0, 1, 0, 0))
