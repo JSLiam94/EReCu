@@ -33,14 +33,18 @@
 ```text
 EReCu/
 ├── assets/figures/                  # Figures
-├── configs/erecu.yaml               # Configuration
+├── configs/erecu.yaml               # DINOv1 configuration
+├── configs/erecu_dinov2.yaml        # DINOv2 configuration
 ├── erecu/                           # Core implementation
 ├── tools/check_data.py              # Dataset checker
 ├── bootstrap_dependencies.py        # Dependency installer
-├── train.py                         # Training
-├── infer.py                         # Inference
+├── train.py                         # DINOv1 training
+├── train_dinov2.py                  # DINOv2 training
+├── infer.py                         # DINOv1 inference
+├── infer_dinov2.py                  # DINOv2 inference
 ├── evaluate.py                      # Evaluation
-└── run.py                           # Unified entry point
+├── run.py                           # DINOv1 unified entry point
+└── run_dinov2.py                    # DINOv2 unified entry point
 ```
 
 ## Environment Setup
@@ -78,6 +82,31 @@ wget -O weights/dino_deitsmall8_pretrain.pth \
 ```
 
 The checkpoint size is approximately **82.71 MB**.
+
+The default configuration also requires an ImageNet-pretrained ResNet-18
+for MNP. `train.py` automatically downloads it to
+`weights/resnet18-f37072fd.pth` before loading the dataset. If downloading or
+strictly validating the weight file fails, training stops.
+
+### Optional DINOv2 backbone
+
+
+Download the official Meta DINOv2 ViT-B/14 checkpoint from the [official DINOv2 release](https://dl.fbaipublicfiles.com/dinov2/dinov2_vitb14/dinov2_vitb14_pretrain.pth):
+
+```bash
+mkdir -p weights
+wget -c -O weights/dinov2_vitb14_pretrain.pth \
+  https://dl.fbaipublicfiles.com/dinov2/dinov2_vitb14/dinov2_vitb14_pretrain.pth
+```
+
+This path is the default in `configs/erecu_dinov2.yaml`. The DINOv2 loader
+converts Meta's fused-QKV checkpoint in memory and verifies the resulting
+state dictionary strictly. DINOv2 also requires `transformers`, which is
+included in `requirements.txt`. Install or verify it with:
+
+```bash
+python bootstrap_dependencies.py --with-dinov2
+```
 
 
 ### Dataset Downloads
@@ -135,8 +164,16 @@ python run.py check --data-root data
 
 Run dataset checking, training, inference, and evaluation sequentially:
 
+**DINOv1 (original default ViT-S/8)**
+
 ```bash
 python run.py all --data-root data
+```
+
+**DINOv2 (ViT-B/14)**
+
+```bash
+python run_dinov2.py all --data-root data
 ```
 
 
@@ -149,12 +186,22 @@ Run the complete pipeline on GPU 7:
 CUDA_VISIBLE_DEVICES=7 python run.py all --data-root data
 ```
 
+For DINOv2 on the same GPU:
+
+```bash
+CUDA_VISIBLE_DEVICES=7 python run_dinov2.py all --data-root data
+```
+
 ### Only Training
 
 Train EReCu using the unlabeled images in `data/TrainDataset/Imgs`:
 
 ```bash
 python run.py train --data-root data
+```
+
+```bash
+python run_dinov2.py train --data-root data
 ```
 
 ### Only Testing
@@ -164,6 +211,10 @@ Run inference and evaluation on CAMO, CHAMELEON, COD10K, and NC4K:
 
 ```bash
 python run.py test --data-root data
+```
+
+```bash
+python run_dinov2.py test --data-root data
 ```
 
 ### Testing Selected Datasets
@@ -192,23 +243,47 @@ python run.py test \
 
 Each selected dataset receives an independent prediction directory and JSON metric file under the specified output root. The aggregate file `benchmark/metrics_summary.json` contains only the datasets requested in that invocation. Omitting `--datasets` restores the default behavior of evaluating all four benchmarks.
 
+### Test a particular checkpoint without mixing backbone implementations
+
+Use the DINOv1 launcher only with a DINOv1 checkpoint:
+
+```bash
+python run.py test \
+  --data-root data \
+  --config configs/erecu.yaml \
+  --checkpoint /path/to/dinov1_checkpoint.pth \
+  --output outputs/eval_dinov1_custom
+```
+
+Use the DINOv2 launcher only with a DINOv2 checkpoint:
+
+```bash
+python run_dinov2.py test \
+  --data-root data \
+  --config configs/erecu_dinov2.yaml \
+  --dino-model weights/dinov2_vitb14_pretrain.pth \
+  --checkpoint /path/to/dinov2_checkpoint.pth \
+  --output outputs/eval_dinov2_custom
+```
+
+
 
 
 ## Output Structure
 
-Checkpoints, predictions, and evaluation results are saved under:
+By default, DINOv1 checkpoints, predictions, and evaluation results are saved under:
 
 ```text
 outputs/erecu/
 ```
 
-The aggregated benchmark results are written to:
+For DINOv1, the aggregated benchmark results are written to:
 
 ```text
 outputs/erecu/benchmark/metrics_summary.json
 ```
 
-A typical output structure is:
+A typical DINOv1 output structure is:
 
 ```text
 outputs/erecu/
@@ -216,6 +291,29 @@ outputs/erecu/
 ├── checkpoint_epoch_002.pth
 ├── checkpoint_best.pth
 ├── checkpoint_best.json
+├── teacher_last.pth
+└── benchmark/
+    ├── predictions/
+    │   ├── CAMO/
+    │   ├── CHAMELEON/
+    │   ├── COD10K/
+    │   └── NC4K/
+    ├── metrics/
+    │   ├── CAMO.json
+    │   ├── CHAMELEON.json
+    │   ├── COD10K.json
+    │   └── NC4K.json
+    └── metrics_summary.json
+```
+
+
+The DINOv2 output structure is:
+
+```text
+outputs/erecu_dinov2/
+├── checkpoint_best.pth
+├── checkpoint_best.json
+├── checkpoint_last.pth
 └── benchmark/
     ├── predictions/
     │   ├── CAMO/

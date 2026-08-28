@@ -37,15 +37,12 @@ def check(args: argparse.Namespace, training: bool, testing: bool) -> None:
     run(command)
 
 
-def train_one(args: argparse.Namespace, seed: int | None = None) -> Path:
+def train_one(args: argparse.Namespace) -> Path:
     train_images, _, output = paths(args)
-    if seed is not None:
-        output = output / f"seed_{seed}"
     run([
         sys.executable, "train_dinov2.py", "--config", args.config, "--train-images", str(train_images),
         "--output", str(output),
         *( ["--dino-model", args.dino_model] if args.dino_model else [] ),
-        *( ["--seed", str(seed)] if seed is not None else [] ),
         *( ["--resume", args.resume] if args.resume else [] ),
     ])
     return output
@@ -53,7 +50,7 @@ def train_one(args: argparse.Namespace, seed: int | None = None) -> Path:
 
 def train(args: argparse.Namespace) -> list[Path]:
     check(args, training=True, testing=False)
-    return [train_one(args, seed) for seed in (args.seeds or [None])]
+    return [train_one(args)]
 
 
 def test_one(args: argparse.Namespace, output: Path, checkpoint: Path | None = None) -> None:
@@ -99,12 +96,8 @@ def test_one(args: argparse.Namespace, output: Path, checkpoint: Path | None = N
 
 def test(args: argparse.Namespace, outputs: list[Path] | None = None) -> None:
     check(args, training=False, testing=True)
-    if args.seeds and args.checkpoint:
-        raise ValueError("--checkpoint cannot be combined with --seeds; each seed uses its own selected checkpoint kind.")
     if outputs is not None:
         targets = outputs
-    elif args.seeds:
-        targets = [paths(args)[2] / f"seed_{seed}" for seed in args.seeds]
     else:
         targets = [paths(args)[2]]
     for output in targets:
@@ -131,21 +124,14 @@ def main() -> None:
         "--checkpoint-kind",
         choices=("best", "last"),
         default="best",
-        help="checkpoint used with --seeds when --checkpoint is omitted; default: best",
+        help="checkpoint used when --checkpoint is omitted; default: best",
     )
     parser.add_argument("--resume", default=None)
     parser.add_argument("--eval-batch-size", type=int, default=2)
     parser.add_argument("--datasets", nargs="+", choices=tuple(TESTS), default=None, help="default: all four test datasets")
-    parser.add_argument("--seeds", nargs="+", type=int, default=None, help="seeds to run (default: 2026)")
     args = parser.parse_args()
     if args.eval_batch_size < 1:
         raise ValueError("--eval-batch-size must be positive")
-    if args.seeds is None and args.command in {"train", "all"}:
-        args.seeds = [2026]
-    elif args.seeds is None and args.command == "test" and args.checkpoint is None:
-        # Match the default single-seed training output while preserving the
-        # existing explicit-checkpoint behaviour.
-        args.seeds = [2026]
     if args.command == "check":
         check(args, training=True, testing=True)
     elif args.command == "train":
